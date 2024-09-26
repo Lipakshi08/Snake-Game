@@ -1,127 +1,85 @@
-import tkinter  
+import pygame
+import sys
 import random
+import time
 
-ROWS = 25
-COLS = 25
-TILE_SIZE = 25
+pygame.init()
 
-WINDOW_WIDTH = TILE_SIZE * ROWS
-WINDOW_HEIGHT = TILE_SIZE * COLS
+WIDTH = 800
+HEIGHT = 600
+BLOCK_SIZE = 20
+WHITE = (255, 255, 255)
+BLACK = (0, 0, 0)
+RED = (255, 0, 0)
+GREEN = (0, 255, 0)
 
-class Tile:
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
-        
+screen = pygame.display.set_mode((WIDTH, HEIGHT))
 
-window = tkinter.Tk()
-window.title("Snake")
-window.resizable(False, False)
+font = pygame.font.Font(None, 36)
 
-canvas = tkinter.Canvas(window, bg = "black", width= WINDOW_WIDTH, height= WINDOW_HEIGHT, borderwidth = 0, highlightthickness = 0)
-canvas.pack()
-window.update()
+clock = pygame.time.Clock()
 
-window_width = window.winfo_width()
-window_height = window.winfo_height()
-screen_width = window.winfo_screenwidth()
-screen_height = window.winfo_screenheight()
+class SnakeGame:
+    def __init__(self):
+        self.snake = [(200, 200), (220, 200), (240, 200)]
+        self.direction = 'RIGHT'
+        self.apple = self.generate_apple()
 
-window_x = int((screen_width/2) - (window_width/2))
-window_y = int((screen_height/2) - (screen_width/2))
-#format "(w)x(h)+(x)+(y)"
-window.geometry(f"{window_width}x{window_height}+{window_x}+{window_y}")
+    def generate_apple(self):
+        while True:
+            x = random.randint(0, WIDTH - BLOCK_SIZE) // BLOCK_SIZE * BLOCK_SIZE
+            y = random.randint(0, HEIGHT - BLOCK_SIZE) // BLOCK_SIZE * BLOCK_SIZE
+            if (x, y) not in self.snake:
+                return x, y
 
-snake = Tile(5*TILE_SIZE, 5*TILE_SIZE)  #single tile, snake's head
-food = Tile(10*TILE_SIZE, 10*TILE_SIZE)
-snake_body = []
-velocityX = 0
-velocityY = 0
-game_over = False
-score = 0
+    def play(self):
+        while True:
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    pygame.quit()
+                    sys.exit()
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_UP and self.direction != 'DOWN':
+                        self.direction = 'UP'
+                    elif event.key == pygame.K_DOWN and self.direction != 'UP':
+                        self.direction = 'DOWN'
+                    elif event.key == pygame.K_LEFT and self.direction != 'RIGHT':
+                        self.direction = 'LEFT'
+                    elif event.key == pygame.K_RIGHT and self.direction != 'LEFT':
+                        self.direction = 'RIGHT'
 
-def change_direction(e):
-    # print(e)
-    # print(e, keysym)
+            head = self.snake[-1]
+            if self.direction == 'UP':
+                new_head = (head[0], head[1] - BLOCK_SIZE)
+            elif self.direction == 'DOWN':
+                new_head = (head[0], head[1] + BLOCK_SIZE)
+            elif self.direction == 'LEFT':
+                new_head = (head[0] - BLOCK_SIZE, head[1])
+            elif self.direction == 'RIGHT':
+                new_head = (head[0] + BLOCK_SIZE, head[1])
 
-    global velocityX, velocityY, game_over
-    if (game_over):
-        return
+            self.snake.append(new_head)
 
-    if (e.keysym == "Up" and velocityY != 1):
-        velocityX = 0
-        velocityY = -1
-    elif (e.keysym == "Down" and velocityY != -1):
-        velocityX = 0
-        velocityY = -1
-    elif (e.keysym == "Left" and velocityX != 1):
-        velocityX = -1
-        velocityY = 0
-    elif (e.keysym == "Right" and velocityX != -1):
-        velocityX = -1
-        velocityY = 0            
+            if self.snake[-1] == self.apple:
+                self.apple = self.generate_apple()
+            else:
+                self.snake.pop(0)
 
-def move():
-    global snake, game_over, food, snake_body, score
-    if (game_over):
-        return
-    
-    if (snake.x < 0 or snake.x >= WINDOW_WIDTH or snake.y < 0 or snake.y >= WINDOW_HEIGHT):
-        game_over = True
-        return
-    for tile in snake_body:
-        if (snake.x == tile.x and snake.y == tile.y):
-            game_over = True
-            return
+            if (self.snake[-1][0] < 0 or self.snake[-1][0] >= WIDTH or
+                self.snake[-1][1] < 0 or self.snake[-1][1] >= HEIGHT or
+                self.snake[-1] in self.snake[:-1]):
+                print("Game Over!")
+                break
 
+            screen.fill(BLACK)
+            for pos in self.snake:
+                pygame.draw.rect(screen, GREEN, (pos[0], pos[1], BLOCK_SIZE, BLOCK_SIZE))
+            pygame.draw.rect(screen, RED, (self.apple[0], self.apple[1], BLOCK_SIZE, BLOCK_SIZE))
+            text = font.render(f"Score: {len(self.snake)}", True, WHITE)
+            screen.blit(text, (10, 10))
+            pygame.display.flip()
+            clock.tick(10)
 
-    if (snake.x == food.x and snake.y == food.y):
-        snake_body.append(Tile(food.x, food.y))
-        food.x = random.randint(0, COLS-1) * TILE_SIZE
-        food.y = random.randint(0, ROWS-1) * TILE_SIZE
-        score += 1
-
-
-    for i in range(len(snake_body)-1, -1, -1):
-        tile = snake_body[i]
-        if (i == 0):
-            tile.x = snake.x
-            tile.y = snake.y
-        else :
-            prev_tile = snake_body[i-1]
-            tile.x = prev_tile.x
-            tile.y = prev_tile.y        
-
-
-    snake.x += velocityX * TILE_SIZE
-    snake.y += velocityY * TILE_SIZE
-
-
-
-def draw():
-    global snake, food, snake_body, game_over, score
-    move()
-
-    canvas.delete("all")
-
-    canvas.create_rectangle(snake.x, snake.y, snake.x + TILE_SIZE, snake.y + TILE_SIZE, fill ="green")
-
-    canvas.create_rectangle(food.x, food.y, food.x + TILE_SIZE, food.y + TILE_SIZE, fill = "red")
-
-    for tile in snake_body:
-        canvas.create_rectangle(tile.x, tile.y, tile.x + TILE_SIZE, tile.y + TILE_SIZE, fill = "green")
-
-    if(game_over):
-        canvas.create_text(WINDOW_WIDTH/2, WINDOW_HEIGHT/2, font = "Arial 20", text = f"Game Over: {score}", fill = "white")
-    else:
-        canvas.create_text(30, 20, font = "Arial 10", text = f"Score : {score}", fill = "white")
-
-
-    window.after(100, draw)
-
-draw()
-
-window.bind("<KeyRelease>", change_direction)
-
-
-window.mainloop()
+if __name__ == "__main__":
+    game = SnakeGame()
+    game.play()
